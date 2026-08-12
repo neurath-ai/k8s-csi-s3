@@ -1,0 +1,3 @@
+[submodule "third_party/geesefs"]
+	path = third_party/geesefs
+	url = https://github.com/neurath-ai/geesefs.git

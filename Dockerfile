@@ -1,21 +1,34 @@
-FROM golang:1.25.9-alpine as gobuild
+# syntax=docker/dockerfile:1
 
+FROM --platform=$BUILDPLATFORM golang:1.25.9-alpine AS csi-build
+
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /build
-ADD go.mod go.sum /build/
-RUN go mod download -x
-ADD cmd /build/cmd
-ADD pkg /build/pkg
-RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o ./s3driver ./cmd/s3driver
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd ./cmd
+COPY pkg ./pkg
+RUN CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
+    go build -trimpath -a -ldflags '-extldflags "-static"' -o /out/s3driver ./cmd/s3driver
 
-FROM alpine:latest
-LABEL maintainers="Vitaliy Filippov <vitalif@yourcmc.ru>"
-LABEL description="csi-s3 slim image"
+FROM --platform=$BUILDPLATFORM golang:1.25.9-alpine AS geesefs-build
 
-RUN apk add --no-cache fuse mailcap rclone
-RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/community s3fs-fuse
+ARG TARGETOS
+ARG TARGETARCH
+WORKDIR /build
+COPY third_party/geesefs/go.mod third_party/geesefs/go.sum ./
+RUN go mod download
+COPY third_party/geesefs/ ./
+RUN CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
+    go build -trimpath -ldflags "-X main.Version=0.43.7-neurath.1" -o /out/geesefs .
 
-ADD https://github.com/yandex-cloud/geesefs/releases/latest/download/geesefs-linux-amd64 /usr/bin/geesefs
-RUN chmod 755 /usr/bin/geesefs
+FROM alpine:3.22
 
-COPY --from=gobuild /build/s3driver /s3driver
+LABEL org.opencontainers.image.source="https://github.com/neurath-ai/k8s-csi-s3"
+LABEL org.opencontainers.image.description="CSI S3 driver with GeeseFS"
+RUN apk add --no-cache fuse mailcap rclone \
+    && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community s3fs-fuse
+COPY --from=csi-build /out/s3driver /s3driver
+COPY --from=geesefs-build /out/geesefs /usr/bin/geesefs
 ENTRYPOINT ["/s3driver"]

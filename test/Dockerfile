@@ -1,3 +1,11 @@
+FROM golang:1.25.9 AS geesefs-build
+
+WORKDIR /src
+COPY third_party/geesefs/go.mod third_party/geesefs/go.sum ./
+RUN go mod download
+COPY third_party/geesefs/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /geesefs .
+
 FROM golang:1.25.9
 
 LABEL maintainers="Vitaliy Filippov <vitalif@yourcmc.ru>"
@@ -18,7 +26,6 @@ COPY go.mod .
 COPY go.sum .
 RUN go mod download
 
-RUN wget https://github.com/yandex-cloud/geesefs/releases/latest/download/geesefs-linux-amd64 \
-    -O /usr/bin/geesefs && chmod 755 /usr/bin/geesefs
+COPY --from=geesefs-build /geesefs /usr/bin/geesefs
 
 ENTRYPOINT ["/build/test/test.sh"]

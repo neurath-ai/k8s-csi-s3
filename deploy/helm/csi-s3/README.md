@@ -4,8 +4,14 @@ This chart adds S3 volume support to your cluster.
 
 ## Install chart
 
-- Helm 2.x: `helm install [--set secret.accessKey=... --set secret.secretKey=... ...] --namespace kube-system --name csi-s3 .`
-- Helm 3.x: `helm install [--set secret.accessKey=... --set secret.secretKey=... ...] --namespace kube-system csi-s3 .`
+```bash
+helm install csi-s3 oci://registry-1.docker.io/dmorozoff/csi-s3 \
+  --version 0.43.7-neurath.1 \
+  --namespace kube-system \
+  --set secret.accessKey=<YOUR_ACCESS_KEY> \
+  --set secret.secretKey=<YOUR_SECRET_KEY> \
+  --set secret.endpoint=<YOUR_S3_ENDPOINT>
+```
 
 After installation succeeds, you can get a status of Chart: `helm status csi-s3`.
 
@@ -16,8 +22,8 @@ After installation succeeds, you can get a status of Chart: `helm status csi-s3`
 
 ## Configuration
 
-By default, this chart creates a secret and a storage class. You should at least set `secret.accessKey` and `secret.secretKey`
-to your [Yandex Object Storage](https://cloud.yandex.com/en-ru/services/storage) keys for it to work.
+By default, this chart creates a secret and a storage class. Set `secret.accessKey`, `secret.secretKey`, and
+`secret.endpoint` for your S3-compatible service.
 
 The following table lists all configuration parameters and their default values.
 
@@ -34,7 +40,7 @@ The following table lists all configuration parameters and their default values.
 | `secret.name`                | Name of the secret                                                     | csi-s3-secret                                          |
 | `secret.accessKey`           | S3 Access Key                                                          |                                                        |
 | `secret.secretKey`           | S3 Secret Key                                                          |                                                        |
-| `secret.endpoint`            | Endpoint                                                               | https://storage.yandexcloud.net                        |
+| `secret.endpoint`            | Endpoint                                                               |                                                        |
 | `secret.region`              | Region                                                                 |                         |
 | `tolerations.all`            | Tolerate all taints by the CSI-S3 node driver (mounter)                | false                                                  |
 | `tolerations.node`           | Custom tolerations for the CSI-S3 node driver (mounter)                | []                                                     |

@@ -1,0 +1,48 @@
+name: Check upstream versions
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 14 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  advisory:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Warn when newer upstream tags exist
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          check_version() {
+            local component="$1"
+            local repository="$2"
+            local pinned="$3"
+            local tags latest newest
+
+            if ! tags="$(git ls-remote --tags --refs "https://github.com/yandex-cloud/$repository.git" 'v[0-9]*')"; then
+              echo "::warning title=$component upstream check unavailable::Could not query yandex-cloud/$repository; pinned version remains $pinned"
+              return 0
+            fi
+
+            latest="$(awk '{sub("refs/tags/", "", $2); print $2}' <<< "$tags" | sort -V | tail -n 1)"
+            if [[ -z "$latest" ]]; then
+              echo "::warning title=$component upstream check unavailable::No upstream release tags found; pinned version remains $pinned"
+              return 0
+            fi
+
+            newest="$(printf '%s\n%s\n' "$pinned" "$latest" | sort -V | tail -n 1)"
+            if [[ "$latest" == "$pinned" ]]; then
+              echo "$component is current at $pinned"
+            elif [[ "$newest" == "$latest" ]]; then
+              echo "::warning title=New $component upstream version::Pinned version is $pinned; latest yandex-cloud/$repository tag is $latest"
+            else
+              echo "$component pin $pinned is newer than latest upstream tag $latest"
+            fi
+          }
+
+          check_version "CSI S3" "k8s-csi-s3" "v0.43.7"
+          check_version "GeeseFS" "geesefs" "v0.43.7"
