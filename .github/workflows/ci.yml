@@ -1,0 +1,57 @@
+name: Test owned CSI source
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DRIVER_IMAGE: dmorozoff/csi-s3-driver:0.43.7-neurath.1
+  REGISTRAR_IMAGE: dmorozoff/csi-node-driver-registrar:v2.16.0-neurath.1
+  PROVISIONER_IMAGE: dmorozoff/csi-provisioner:v6.2.0-neurath.1
+  GEESEFS_COMMIT: 8da9c52980192bcae9f777a03b00dfd993b0e398
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Test and cross-compile owned source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C third_party/geesefs rev-parse HEAD)" = "$GEESEFS_COMMIT"
+          test "$(git -C third_party/geesefs remote get-url origin)" = "https://github.com/neurath-ai/geesefs.git"
+          go test ./...
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -o "/tmp/s3driver-$arch" ./cmd/s3driver
+            (
+              cd third_party/geesefs
+              CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -o "/tmp/geesefs-$arch" .
+            )
+          done
+
+      - name: Test chart ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          helm lint deploy/helm/csi-s3
+          helm template csi-s3 deploy/helm/csi-s3 > /tmp/csi-s3-rendered.yaml
+          grep -Fq "image: $DRIVER_IMAGE" /tmp/csi-s3-rendered.yaml
+          grep -Fq "image: $REGISTRAR_IMAGE" /tmp/csi-s3-rendered.yaml
+          grep -Fq "image: $PROVISIONER_IMAGE" /tmp/csi-s3-rendered.yaml
+          if grep -Eq 'cr\.yandex|yandex-cloud\.github\.io|storage\.yandexcloud\.net' /tmp/csi-s3-rendered.yaml; then
+            echo "Rendered chart contains a Yandex-controlled endpoint or registry" >&2
+            exit 1
+          fi
