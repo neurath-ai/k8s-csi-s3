@@ -28,6 +28,8 @@ jobs:
           if [ -f "$HOME/.zprofile" ]; then source "$HOME/.zprofile"; fi
           if [ -f "$HOME/.zshrc" ]; then source "$HOME/.zshrc"; fi
           echo "PATH=$PATH" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/docker-config"
+          echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
         with:
@@ -141,6 +143,8 @@ jobs:
           if [ -f "$HOME/.zprofile" ]; then source "$HOME/.zprofile"; fi
           if [ -f "$HOME/.zshrc" ]; then source "$HOME/.zshrc"; fi
           echo "PATH=$PATH" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/docker-config"
+          echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
 
       - uses: docker/login-action@v3
         with:
