@@ -2,6 +2,11 @@ name: Release owned CSI artifacts
 
 on:
   workflow_dispatch:
+    inputs:
+      verify_only:
+        description: Verify already-published artifacts without overwriting them
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -84,6 +89,7 @@ jobs:
           chmod 600 "$DOCKER_CONFIG/config.json"
 
       - name: Refuse to overwrite published artifacts
+        if: ${{ inputs.verify_only == false }}
         shell: bash
         run: |
           set -euo pipefail
@@ -99,6 +105,7 @@ jobs:
           fi
 
       - name: Publish multi-architecture driver
+        if: ${{ inputs.verify_only == false }}
         run: >-
           docker buildx build
           --platform linux/amd64,linux/arm64
@@ -106,6 +113,7 @@ jobs:
           --push .
 
       - name: Mirror pinned sidecars
+        if: ${{ inputs.verify_only == false }}
         shell: bash
         run: |
           set -euo pipefail
@@ -113,6 +121,7 @@ jobs:
           docker buildx imagetools create --tag "$PROVISIONER_IMAGE" "$PROVISIONER_SOURCE"
 
       - name: Publish OCI chart
+        if: ${{ inputs.verify_only == false }}
         shell: bash
         run: |
           set -euo pipefail
@@ -169,7 +178,7 @@ jobs:
           for arch in amd64 arm64; do
             for image in "$DRIVER_IMAGE" "$REGISTRAR_IMAGE" "$PROVISIONER_IMAGE"; do
               docker pull --platform "linux/$arch" "$image"
-              test "$(docker image inspect --format '{{.Architecture}}' "$image")" = "$arch"
+              test "$(docker image inspect --platform "linux/$arch" --format '{{.Architecture}}' "$image")" = "$arch"
             done
           done
           docker run --rm --entrypoint /bin/sh "$DRIVER_IMAGE" -c 'test -x /s3driver && test -x /usr/bin/geesefs'
