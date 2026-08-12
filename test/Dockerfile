@@ -1,9 +1,8 @@
 FROM golang:1.25.9 AS geesefs-build
 
 WORKDIR /src
-COPY third_party/geesefs/go.mod third_party/geesefs/go.sum ./
-RUN go mod download
 COPY third_party/geesefs/ ./
+RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /geesefs .
 
 FROM golang:1.25.9
