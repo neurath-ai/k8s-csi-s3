@@ -18,9 +18,17 @@ env:
 
 jobs:
   publish:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, kind-enabled]
     environment: dockerhub-release
     steps:
+      - name: Bootstrap PATH from local zsh
+        shell: /bin/zsh {0}
+        run: |
+          if [ -f "$HOME/.zshenv" ]; then source "$HOME/.zshenv"; fi
+          if [ -f "$HOME/.zprofile" ]; then source "$HOME/.zprofile"; fi
+          if [ -f "$HOME/.zshrc" ]; then source "$HOME/.zshrc"; fi
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -121,18 +129,19 @@ jobs:
             exit 1
           fi
 
-  native-pull:
+  platform-pull:
     needs: publish
     environment: dockerhub-release
-    strategy:
-      matrix:
-        include:
-          - runner: ubuntu-24.04
-            arch: amd64
-          - runner: ubuntu-24.04-arm
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
+    runs-on: [self-hosted, kind-enabled]
     steps:
+      - name: Bootstrap PATH from local zsh
+        shell: /bin/zsh {0}
+        run: |
+          if [ -f "$HOME/.zshenv" ]; then source "$HOME/.zshenv"; fi
+          if [ -f "$HOME/.zprofile" ]; then source "$HOME/.zprofile"; fi
+          if [ -f "$HOME/.zshrc" ]; then source "$HOME/.zshrc"; fi
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+
       - uses: docker/login-action@v3
         with:
           username: dmorozoff
@@ -141,8 +150,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for image in "$DRIVER_IMAGE" "$REGISTRAR_IMAGE" "$PROVISIONER_IMAGE"; do
-            docker pull "$image"
-            test "$(docker image inspect --format '{{.Architecture}}' "$image")" = "${{ matrix.arch }}"
+          for arch in amd64 arm64; do
+            for image in "$DRIVER_IMAGE" "$REGISTRAR_IMAGE" "$PROVISIONER_IMAGE"; do
+              docker pull --platform "linux/$arch" "$image"
+              test "$(docker image inspect --format '{{.Architecture}}' "$image")" = "$arch"
+            done
           done
           docker run --rm --entrypoint /bin/sh "$DRIVER_IMAGE" -c 'test -x /s3driver && test -x /usr/bin/geesefs'

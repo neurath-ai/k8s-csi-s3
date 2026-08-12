@@ -16,8 +16,16 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, kind-enabled]
     steps:
+      - name: Bootstrap PATH from local zsh
+        shell: /bin/zsh {0}
+        run: |
+          if [ -f "$HOME/.zshenv" ]; then source "$HOME/.zshenv"; fi
+          if [ -f "$HOME/.zprofile" ]; then source "$HOME/.zprofile"; fi
+          if [ -f "$HOME/.zshrc" ]; then source "$HOME/.zshrc"; fi
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
