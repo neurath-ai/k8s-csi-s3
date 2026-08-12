@@ -24,7 +24,7 @@ jobs:
           if [ -f "$HOME/.zshenv" ]; then source "$HOME/.zshenv"; fi
           if [ -f "$HOME/.zprofile" ]; then source "$HOME/.zprofile"; fi
           if [ -f "$HOME/.zshrc" ]; then source "$HOME/.zshrc"; fi
-          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          echo "PATH=/usr/local/bin:$PATH" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
         with:
